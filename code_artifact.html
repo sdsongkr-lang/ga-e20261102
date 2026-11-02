@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 스마트폰과 태블릿 화면에 꼭 맞추기 위한 반응형 뷰포트 설정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>사자성어 맞히기</title>
+  
+  <style>
+    /* ==========================================================================
+       [기본 스타일 설정]
+       어르신과 모든 연령층이 보기 편하도록 큼직한 글씨와 선명한 대비를 적용했습니다.
+       외부 인터넷 폰트나 라이브러리를 쓰지 않고 모든 기기 기본 시스템 고딕체를 사용합니다.
+       ========================================================================== */
+    :root {
+      --primary-color: #2563eb;       /* 신뢰감을 주는 파란색 */
+      --primary-hover: #1d4ed8;
+      --success-color: #059669;       /* 정답 녹색 */
+      --error-color: #dc2626;         /* 오답 빨간색 */
+      --bg-color: #f3f4f6;            /* 부드러운 밝은 회색 배경 */
+      --card-bg: #ffffff;             /* 카드 흰색 배경 */
+      --text-main: #1f2937;           /* 진한 텍스트 */
+      --text-sub: #4b5563;            /* 설명용 보조 텍스트 */
+      --border-color: #e5e7eb;
+      --choice-bg: #f9fafb;
+      --choice-hover: #eff6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent; /* 터치 시 파란 잔상 제거 */
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      line-height: 1.5;
+    }
+
+    /* 전체 화면을 감싸는 메인 컨테이너 */
+    .app-container {
+      width: 100%;
+      max-width: 600px; /* 모바일과 태블릿, PC 어디서든 최적의 폭 유지 */
+      background-color: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 화면 전환을 위한 기본 숨김/보임 클래스 */
+    .screen {
+      display: none;
+    }
+    .screen.active {
+      display: block;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ----------------------------------------------------
+       [1. 시작 화면 스타일]
+       ---------------------------------------------------- */
+    .start-screen {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .game-badge {
+      display: inline-block;
+      background-color: #dbeafe;
+      color: #1e40af;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 30px;
+      margin-bottom: 12px;
+    }
+    .game-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+    .game-desc {
+      font-size: 17px;
+      color: var(--text-sub);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .rules-card {
+      background-color: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px 20px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+    .rules-card h3 {
+      font-size: 17px;
+      margin-bottom: 10px;
+      color: var(--text-main);
+    }
+    .rules-card ul {
+      padding-left: 20px;
+      font-size: 15px;
+      color: var(--text-sub);
+    }
+    .rules-card li {
+      margin-bottom: 6px;
+    }
+
+    /* ----------------------------------------------------
+       [2. 퀴즈 진행 화면 스타일]
+       ---------------------------------------------------- */
+    .quiz-header {
+      margin-bottom: 16px;
+    }
+    .quiz-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 8px;
+    }
+    /* 진행 상태 바 */
+    .progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background-color: #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 20%;
+      background-color: var(--primary-color);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+
+    /* 문제 카드 */
+    .question-card {
+      background: linear-gradient(135deg, #f0f7ff, #ffffff);
+      border: 2px solid #bfdbfe;
+      border-radius: 16px;
+      padding: 24px 16px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .question-hint {
+      font-size: 15px;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+    .question-text {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #1e3a8a;
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .blank-slot {
+      background-color: #dbeafe;
+      border: 2px dashed #3b82f6;
+      border-radius: 8px;
+      color: transparent;
+      padding: 0 4px;
+      min-width: 90px;
+      user-select: none;
+    }
+
+    /* 4지 선다형 보기 그리드 (2x2) */
+    .choices-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .choice-btn {
+      background-color: var(--choice-bg);
+      border: 2px solid #d1d5db;
+      border-radius: 14px;
+      padding: 16px 10px;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+    .choice-btn:hover:not(:disabled) {
+      background-color: var(--choice-hover);
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+    }
+    .choice-btn:disabled {
+      cursor: default;
+    }
+    /* 정답/오답 클릭 피드백 스타일 */
+    .choice-btn.correct {
+      background-color: #ecfdf5 !important;
+      border-color: var(--success-color) !important;
+      color: var(--success-color) !important;
+      box-shadow: 0 0 0 2px var(--success-color);
+    }
+    .choice-btn.wrong {
+      background-color: #fef2f2 !important;
+      border-color: var(--error-color) !important;
+      color: var(--error-color) !important;
+      opacity: 0.85;
+    }
+
+    /* 정답 후 나타나는 상세 해설 카드 */
+    .explanation-card {
+      display: none;
+      background-color: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .result-status {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-correct { color: var(--success-color); }
+    .status-wrong { color: var(--error-color); }
+
+    .full-word {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+    .hanja-text {
+      font-size: 18px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+    .meaning-text {
+      font-size: 16px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .example-text {
+      font-size: 14px;
+      color: #475569;
+      background-color: #ffffff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary-color);
+      line-height: 1.4;
+    }
+
+    /* 공통 큰 버튼 (시작, 다음, 다시하기) */
+    .primary-btn {
+      width: 100%;
+      background-color: var(--primary-color);
+      color: #ffffff;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      touch-action: manipulation;
+    }
+    .primary-btn:hover {
+      background-color: var(--primary-hover);
+    }
+    .primary-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* ----------------------------------------------------
+       [3. 최종 결과 화면 스타일]
+       ---------------------------------------------------- */
+    .result-screen {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .result-score-box {
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border: 2px solid #bfdbfe;
+      border-radius: 18px;
+      padding: 24px 16px;
+      margin-bottom: 24px;
+    }
+    .score-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+    .score-number {
+      font-size: 54px;
+      font-weight: 900;
+      color: var(--primary-color);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .score-comment {
+      font-size: 17px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    /* 오답 확인 영역 (오답 노트) */
+    .wrong-review-section {
+      text-align: left;
+      margin-bottom: 24px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .wrong-review-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--error-color);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .review-item {
+      background-color: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .review-item-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 17px;
+      color: #9f1239;
+      margin-bottom: 4px;
+    }
+    .review-item-meaning {
+      font-size: 14px;
+      color: #4c0519;
+      line-height: 1.4;
+    }
+
+    /* 모바일 맞춤 미세조정 */
+    @media (max-width: 480px) {
+      .app-container {
+        padding: 20px 16px;
+      }
+      .question-text {
+        font-size: 34px;
+      }
+      .choice-btn {
+        font-size: 21px;
+        padding: 14px 8px;
+      }
+      .game-title {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- ======================================================================
+         [화면 1: 시작 화면]
+         ====================================================================== -->
+    <div id="start-screen" class="screen active start-screen">
+      <div class="game-badge">전 연령 추천 두뇌 학습</div>
+      <h1 class="game-title">사자성어 맞히기</h1>
+      <p class="game-desc">비어있는 두 글자를 채워<br>지혜가 담긴 사자성어를 완성해 보세요!</p>
+
+      <div class="rules-card">
+        <h3>💡 게임 안내</h3>
+        <ul>
+          <li>한 판당 <strong>총 5문제</strong>가 무작위로 출제됩니다.</li>
+          <li>한 문제당 <strong>20점</strong>이며, 100점 만점입니다.</li>
+          <li>앞 2글자 또는 뒤 2글자를 맞춰보세요.</li>
+          <li>문제를 푼 후 <strong>한자, 뜻, 실생활 예문</strong>을 함께 배웁니다.</li>
+        </ul>
+      </div>
+
+      <button id="start-btn" class="primary-btn">게임 시작하기</button>
+    </div>
+
+    <!-- ======================================================================
+         [화면 2: 퀴즈 진행 화면]
+         ====================================================================== -->
+    <div id="quiz-screen" class="screen">
+      <!-- 진행 상태 -->
+      <div class="quiz-header">
+        <div class="quiz-meta">
+          <span id="question-progress">문제 1 / 5</span>
+          <span id="current-score-text">현재 점수: 0점</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- 문제 영역 -->
+      <div class="question-card">
+        <div id="question-hint-text" class="question-hint">빈칸에 들어갈 알맞은 두 글자는?</div>
+        <div id="question-text" class="question-text">
+          <!-- 스크립트로 동적 생성 -->
+        </div>
+      </div>
+
+      <!-- 4지 선다형 선택지 버튼 목록 -->
+      <div id="choices-container" class="choices-grid">
+        <!-- 스크립트로 4개의 버튼 생성 -->
+      </div>
+
+      <!-- 정답 선택 후 나타나는 해설 영역 -->
+      <div id="explanation-card" class="explanation-card">
+        <div id="feedback-badge" class="result-status"></div>
+        <div id="full-word-text" class="full-word"></div>
+        <div id="hanja-text" class="hanja-text"></div>
+        <div id="meaning-text" class="meaning-text"></div>
+        <div id="example-text" class="example-text"></div>
+      </div>
+
+      <!-- 다음 문제 버튼 (답을 선택하기 전에는 숨김) -->
+      <button id="next-btn" class="primary-btn" style="display: none;">다음 문제로 이동 ➔</button>
+    </div>
+
+    <!-- ======================================================================
+         [화면 3: 결과 화면]
+         ====================================================================== -->
+    <div id="result-screen" class="screen result-screen">
+      <div class="game-badge">게임 종료</div>
+      <h2 style="font-size: 28px; font-weight: 800; margin-bottom: 16px;">학습 결과</h2>
+
+      <div class="result-score-box">
+        <div class="score-title">최종 점수</div>
+        <div id="final-score" class="score-number">100점</div>
+        <div id="final-message" class="score-comment">대단합니다! 사자성어 달인이시네요!</div>
+      </div>
+
+      <!-- 틀린 문제가 있을 경우 표시되는 오답 노트 -->
+      <div id="wrong-review-container" class="wrong-review-section" style="display: none;">
+        <div class="wrong-review-title">
+          <span>📝 다시 확인해보는 오답 성어</span>
+        </div>
+        <div id="wrong-items-list">
+          <!-- 오답 목록 스크립트로 삽입 -->
+        </div>
+      </div>
+
+      <button id="restart-btn" class="primary-btn">새로운 문제 다시 풀기</button>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       [자바스크립트 영역]
+       - 30개의 엄선된 사자성어 데이터셋
+       - 퀴즈 로직 및 화면 제어
+       ====================================================================== -->
+  <script>
+    /* --------------------------------------------------------------------------
+       1. 사자성어 30개 데이터베이스 (초보자도 알기 쉽고 정확한 사자성어 엄선)
+       * 추가하고 싶으신 성어가 있다면 아래 형식에 맞춰 추가하시면 됩니다.
+       - word: 한글 네 글자
+       - hanja: 정확한 한자 표기
+       - meaning: 일상적인 쉬운 뜻풀이
+       - example: 실생활에서 바로 쓰는 문장
+       - distractors: 해당 성어와 결합되지 않는 오답 보기 3개
+       -------------------------------------------------------------------------- */
+    const IDIOM_DATABASE = [
+      {
+        word: "고진감래",
+        hanja: "苦盡甘來",
+        meaning: "고생 끝에 낙이 온다는 말로, 힘든 일을 겪고 나면 반드시 즐거운 일이 찾아옵니다.",
+        example: "취업 준비로 고생이 많았지만, 결국 원하던 회사에 합격했으니 고진감래다.",
+        distractors: ["백전", "무퇴", "흥망"]
+      },
+      {
+        word: "일석이조",
+        hanja: "一石二鳥",
+        meaning: "돌 하나를 던져 두 마리의 새를 잡는다는 뜻으로, 한 가지 일로 두 가지 이익을 얻음을 이릅니다.",
+        example: "출퇴근길에 걷기 운동을 하니 교통비도 아끼고 건강도 챙겨 일석이조다.",
+        distractors: ["삼초", "사방", "천리"]
+      },
+      {
+        word: "동문서답",
+        hanja: "東問西答",
+        meaning: "동쪽을 물었는데 서쪽을 대답한다는 뜻으로, 묻는 말에 엉뚱한 대답을 하는 것을 말합니다.",
+        example: "오늘 약속 시간을 물어봤더니 날씨 이야기로 동문서답을 하네요.",
+        distractors: ["남북", "좌우", "상하"]
+      },
+      {
+        word: "작심삼일",
+        hanja: "作心三日",
+        meaning: "결심한 마음이 사흘을 가지 못한다는 뜻으로, 결심이 굳지 못함을 이릅니다.",
+        example: "새해 운동 다짐이 작심삼일로 끝나지 않도록 매일 기록하고 있다.",
+        distractors: ["만년", "백일", "십년"]
+      },
+      {
+        word: "유비무환",
+        hanja: "有備無患",
+        meaning: "미리 준비가 되어 있으면 뒷날에 아무런 근심이나 걱정이 없다는 뜻입니다.",
+        example: "비상 약품과 손전등을 미리 챙겨두는 것이 유비무환의 자세입니다.",
+        distractors: ["다복", "장수", "평온"]
+      },
+      {
+        word: "역지사지",
+        hanja: "易地思之",
+        meaning: "처지를 바꾸어 생각한다는 뜻으로, 상대방의 입장에서 헤아려 보는 태도입니다.",
+        example: "친구와 다투었을 때는 역지사지의 마음으로 먼저 이해해보는 것이 좋습니다.",
+        distractors: ["견문", "청취", "언행"]
+      },
+      {
+        word: "부전자전",
+        hanja: "父傳子傳",
+        meaning: "아버지의 모습이나 성품이 아들에게 그대로 전해진다는 말입니다.",
+        example: "웃는 모습과 꼼꼼한 성격까지 똑같은 것을 보니 정말 부전자전이다.",
+        distractors: ["모녀", "형제", "남매"]
+      },
+      {
+        word: "대기만성",
+        hanja: "大器晩成",
+        meaning: "큰 그릇은 늦게 만들어진다는 뜻으로, 크게 될 인물은 오랜 노력을 거쳐 늦게 성공합니다.",
+        example: "지금 성과가 더디더라도 조급해하지 마세요. 당신은 대기만성형 인재입니다.",
+        distractors: ["속성", "급조", "초심"]
+      },
+      {
+        word: "온고지신",
+        hanja: "溫故知新",
+        meaning: "옛것을 익히고 그것을 미루어서 새로운 지식과 도리를 안다는 뜻입니다.",
+        example: "전통 기술에 현대적인 감각을 더하는 것이 바로 온고지신의 정신이다.",
+        distractors: ["미래", "창조", "개혁"]
+      },
+      {
+        word: "다다익선",
+        hanja: "多多益善",
+        meaning: "많으면 많을수록 더욱 좋다는 뜻입니다.",
+        example: "도서관에 유익한 책은 다다익선이니 앞으로도 많이 확충하겠습니다.",
+        distractors: ["소소", "적정", "제한"]
+      },
+      {
+        word: "주마간산",
+        hanja: "走馬看山",
+        meaning: "달리는 말을 타고 산을 바라본다는 뜻으로, 바빠서 자세히 살피지 않고 겉핥기로 훑어봄을 이릅니다.",
+        example: "패키지 여행 일정이 너무 빡빡해서 관광지를 주마간산 격으로 스쳐 지나갔다.",
+        distractors: ["정독", "탐구", "관찰"]
+      },
+      {
+        word: "십시일반",
+        hanja: "十匙一飯",
+        meaning: "열 숟가락이면 한 그릇의 밥이 된다는 뜻으로, 여러 사람이 힘을 합치면 작은 힘으로도 큰 도움을 줄 수 있습니다.",
+        example: "이웃 돕기 성금을 주민들이 십시일반으로 모아 따뜻한 겨울을 선물했습니다.",
+        distractors: ["백전", "천금", "만석"]
+      },
+      {
+        word: "우이독경",
+        hanja: "牛耳讀經",
+        meaning: "소의 귀에 경 읽기라는 뜻으로, 아무리 가르치고 타일러도 알아듣지 못함을 이릅니다.",
+        example: "스마트폰을 줄이라고 몇 번을 당부해도 우이독경이니 답답하다.",
+        distractors: ["마이", "어독", "조청"]
+      },
+      {
+        word: "이심전심",
+        hanja: "以心傳心",
+        meaning: "말이나 글을 쓰지 않아도 마음에서 마음으로 서로의 뜻이 통함을 이릅니다.",
+        example: "오래된 단짝 친구와는 눈빛만 마주쳐도 이심전심으로 통한다.",
+        distractors: ["구전", "필담", "문답"]
+      },
+      {
+        word: "설상가상",
+        hanja: "雪上加霜",
+        meaning: "눈 위에 서리가 더해진다는 뜻으로, 어려운 일이나 불행이 겹쳐 일어남을 이릅니다.",
+        example: "지갑을 잃어버렸는데 설상가상으로 갑자기 소나기까지 내렸다.",
+        distractors: ["화기", "춘풍", "경사"]
+      },
+      {
+        word: "금상첨화",
+        hanja: "錦上添花",
+        meaning: "비단 위에 꽃을 더한다는 뜻으로, 좋은 일 위에 더 좋은 일이 더해짐을 이릅니다.",
+        example: "날씨도 화창한데 맛있는 도시락까지 챙겨왔으니 금상첨화다.",
+        distractors: ["설중", "암중", "진퇴"]
+      },
+      {
+        word: "동고동락",
+        hanja: "同苦同樂",
+        meaning: "괴로움도 즐거움도 함께한다는 뜻으로, 생사고락을 같이함을 이릅니다.",
+        example: "창업 초기부터 동고동락한 동료들이 있었기에 오늘의 성공이 가능했습니다.",
+        distractors: ["각자", "독행", "분리"]
+      },
+      {
+        word: "백발백중",
+        hanja: "百發百中",
+        meaning: "백 번 쏘아 백 번 다 맞는다는 뜻으로, 솜씨가 아주 뛰어나거나 계획이 빈틈없이 들어맞음을 뜻합니다.",
+        example: "우리 양궁 대표팀 선수는 쐈다 하면 10점 과녁에 백발백중입니다.",
+        distractors: ["십중", "오발", "삼진"]
+      },
+      {
+        word: "천고마비",
+        hanja: "天高馬肥",
+        meaning: "하늘이 높고 말이 살찐다는 뜻으로, 오곡백과가 풍성하고 맑은 가을철을 이르는 말입니다.",
+        example: "선선한 바람이 불어오는 천고마비의 계절 가을이 찾아왔습니다.",
+        distractors: ["춘화", "하서", "동빙"]
+      },
+      {
+        word: "부화뇌동",
+        hanja: "附和雷同",
+        meaning: "자기 생각 없이 덮어놓고 남의 의견이나 행동을 맹목적으로 따르는 것을 말합니다.",
+        example: "남들의 소문에 부화뇌동하지 말고 사실을 직접 확인해야 합니다.",
+        distractors: ["독단", "신념", "주관"]
+      },
+      {
+        word: "골육상쟁",
+        hanja: "骨肉相爭",
+        meaning: "뼈와 살처럼 가까운 피붙이끼리 서로 다투고 싸우는 안타까운 상황을 이릅니다.",
+        example: "유산 상속을 둘러싸고 형제간에 골육상쟁을 벌이는 일은 없어야 한다.",
+        distractors: ["화합", "친목", "우애"]
+      },
+      {
+        word: "군계일학",
+        hanja: "群鷄一鶴",
+        meaning: "닭 무리 속에 섞여 있는 한 마리의 학이라는 뜻으로, 평범한 무리 중에서 두드러지게 뛰어난 사람을 이릅니다.",
+        example: "수많은 참가자 중에서도 그의 빼어난 노래 실력은 군계일학이었다.",
+        distractors: ["만조", "백조", "우마"]
+      },
+      {
+        word: "청출어람",
+        hanja: "靑出於藍",
+        meaning: "쪽풀에서 나온 푸른 물감이 쪽풀보다 더 푸르다는 뜻으로, 제자가 스승보다 나음을 이릅니다.",
+        example: "제자가 세계적인 연주자로 성장하여 청출어람을 보여주었다.",
+        distractors: ["홍출", "백입", "녹변"]
+      },
+      {
+        word: "조삼모사",
+        hanja: "朝三暮四",
+        meaning: "간사한 꾀로 남을 속여 농락함을 이르는 말입니다.",
+        example: "세금을 깎아주고 다른 요금을 올리는 것은 눈 가리고 아웅 하는 조삼모사다.",
+        distractors: ["주일", "야이", "오전"]
+      },
+      {
+        word: "배은망덕",
+        hanja: "背恩忘德",
+        meaning: "남에게 입은 은덕을 저버리고 은혜를 잊어버리는 것을 이릅니다.",
+        example: "어려울 때 도와준 은인을 모른 체하는 것은 배은망덕한 짓이다.",
+        distractors: ["보은", "감사", "충성"]
+      },
+      {
+        word: "일취월장",
+        hanja: "日就月將",
+        meaning: "날마다 나아가고 달마다 발전한다는 뜻으로, 학업이나 실력이 끊임없이 눈부시게 향상됨을 이릅니다.",
+        example: "매일 한 시간씩 연습하더니 한글 쓰기 실력이 일취월장했다.",
+        distractors: ["연년", "시시", "분초"]
+      },
+      {
+        word: "오매불망",
+        hanja: "寤寐不忘",
+        meaning: "자나 깨나 잊지 못한다는 뜻으로, 그리워하는 마음이 간절함을 이릅니다.",
+        example: "부모님은 고향을 떠난 자식들이 돌아오기만을 오매불망 기다리셨다.",
+        distractors: ["영면", "망각", "안식"]
+      },
+      {
+        word: "호사다마",
+        hanja: "好事多魔",
+        meaning: "좋은 일에는 흔히 방해되는 일이나 마가 끼기 쉽다는 뜻입니다.",
+        example: "큰 상을 받아 기쁜 날에 차 사고가 났으니 참으로 호사다마다.",
+        distractors: ["길운", "대박", "만복"]
+      },
+      {
+        word: "적반하장",
+        hanja: "賊反荷杖",
+        meaning: "도둑이 도리어 몽둥이를 든다는 뜻으로, 잘못한 사람이 도리어 잘한 사람을 나무람을 이릅니다.",
+        example: "신호를 위반한 운전자가 오히려 큰소리를 치니 적반하장이다.",
+        distractors: ["사죄", "반성", "침묵"]
+      },
+      {
+        word: "파죽지세",
+        hanja: "破竹之勢",
+        meaning: "대나무를 쪼갤 때의 맹렬한 기세라는 뜻으로, 거침없이 내달려 적을 물리치는 무서운 기세를 이릅니다.",
+        example: "우리 팀은 결승전까지 파죽지세로 전승을 거두며 우승을 차지했다.",
+        distractors: ["연약", "정체", "소강"]
+      }
+    ];
+
+    /* --------------------------------------------------------------------------
+       2. 게임 상태 관리 변수들
+       -------------------------------------------------------------------------- */
+    const TOTAL_QUESTIONS_PER_GAME = 5; // 한 판에 출제할 문제 수
+    let currentQuizList = [];           // 이번 판에 무작위로 뽑힌 5문제
+    let currentIndex = 0;               // 현재 풀고 있는 문제 번호 (0~4)
+    let score = 0;                      // 현재 획득 점수
+    let wrongAnswers = [];              // 틀린 문제들을 담아둘 오답 목록
+
+    // DOM 요소 가져오기
+    const startScreen = document.getElementById('start-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    const resultScreen = document.getElementById('result-screen');
+
+    const startBtn = document.getElementById('start-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    const questionProgress = document.getElementById('question-progress');
+    const currentScoreText = document.getElementById('current-score-text');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+
+    const questionTextContainer = document.getElementById('question-text');
+    const questionHintText = document.getElementById('question-hint-text');
+    const choicesContainer = document.getElementById('choices-container');
+
+    const explanationCard = document.getElementById('explanation-card');
+    const feedbackBadge = document.getElementById('feedback-badge');
+    const fullWordText = document.getElementById('full-word-text');
+    const hanjaText = document.getElementById('hanja-text');
+    const meaningText = document.getElementById('meaning-text');
+    const exampleText = document.getElementById('example-text');
+
+    const finalScore = document.getElementById('final-score');
+    const finalMessage = document.getElementById('final-message');
+    const wrongReviewContainer = document.getElementById('wrong-review-container');
+    const wrongItemsList = document.getElementById('wrong-items-list');
+
+    /* --------------------------------------------------------------------------
+       3. 유틸리티 함수: 배열 무작위 섞기 (Fisher-Yates 알고리즘)
+       -------------------------------------------------------------------------- */
+    function shuffleArray(array) {
+      const clone = [...array];
+      for (let i = clone.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [clone[i], clone[j]] = [clone[j], clone[i]];
+      }
+      return clone;
+    }
+
+    /* --------------------------------------------------------------------------
+       4. 게임 시작 및 초기화
+       -------------------------------------------------------------------------- */
+    function startGame() {
+      score = 0;
+      currentIndex = 0;
+      wrongAnswers = [];
+
+      // 30개 문제 중 무작위로 5문제 선정
+      const shuffledAll = shuffleArray(IDIOM_DATABASE);
+      currentQuizList = shuffledAll.slice(0, TOTAL_QUESTIONS_PER_GAME);
+
+      // 화면 전환: 시작 화면 숨기고 퀴즈 화면 표시
+      startScreen.classList.remove('active');
+      resultScreen.classList.remove('active');
+      quizScreen.classList.add('active');
+
+      // 첫 번째 문제 로드
+      loadQuestion();
+    }
+
+    /* --------------------------------------------------------------------------
+       5. 문제 출제 및 화면 그리기
+       -------------------------------------------------------------------------- */
+    function loadQuestion() {
+      // 해설 카드 및 다음 버튼 초기화
+      explanationCard.style.display = 'none';
+      nextBtn.style.display = 'none';
+      choicesContainer.innerHTML = '';
+
+      const currentItem = currentQuizList[currentIndex];
+
+      // 상단 진행바 및 텍스트 갱신
+      questionProgress.textContent = `문제 ${currentIndex + 1} / ${TOTAL_QUESTIONS_PER_GAME}`;
+      currentScoreText.textContent = `현재 점수: ${score}점`;
+      const progressPercent = ((currentIndex + 1) / TOTAL_QUESTIONS_PER_GAME) * 100;
+      progressBarFill.style.width = `${progressPercent}%`;
+
+      // 50% 확률로 앞 두 글자를 비울지, 뒤 두 글자를 비울지 결정
+      // hideFront가 true이면 앞 2글자 빈칸(□□감래), false이면 뒤 2글자 빈칸(고진□□)
+      const hideFront = Math.random() < 0.5;
+      const frontPart = currentItem.word.substring(0, 2);
+      const backPart = currentItem.word.substring(2, 4);
+
+      let questionHtml = '';
+      let correctAnswer = '';
+
+      if (hideFront) {
+        correctAnswer = frontPart;
+        questionHtml = `
+          <span class="blank-slot">□□</span>
+          <span>${backPart}</span>
+        `;
+        questionHintText.textContent = `앞의 빈칸 [□□]에 들어갈 두 글자는?`;
+      } else {
+        correctAnswer = backPart;
+        questionHtml = `
+          <span>${frontPart}</span>
+          <span class="blank-slot">□□</span>
+        `;
+        questionHintText.textContent = `뒤의 빈칸 [□□]에 들어갈 두 글자는?`;
+      }
+
+      questionTextContainer.innerHTML = questionHtml;
+
+      // 보기 4개 준비 (정답 1개 + 오답 3개 섞기)
+      const choiceOptions = shuffleArray([correctAnswer, ...currentItem.distractors]);
+
+      // 버튼 생성
+      choiceOptions.forEach(optionText => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = optionText;
+        // 터치 및 클릭 이벤트 리스너 등록
+        btn.addEventListener('click', () => handleChoiceClick(btn, optionText, correctAnswer, currentItem));
+        choicesContainer.appendChild(btn);
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       6. 보기 선택 시 정답/오답 판정 및 상세 해설 표시
+       -------------------------------------------------------------------------- */
+    function handleChoiceClick(clickedBtn, selectedAnswer, correctAnswer, currentItem) {
+      // 중복 클릭 방지: 모든 보기 버튼 비활성화
+      const allChoiceBtns = choicesContainer.querySelectorAll('.choice-btn');
+      allChoiceBtns.forEach(btn => btn.disabled = true);
+
+      const isCorrect = (selectedAnswer === correctAnswer);
+
+      if (isCorrect) {
+        // 정답 처리: 점수 20점 가산 및 초록색 스타일
+        score += 20;
+        clickedBtn.classList.add('correct');
+        feedbackBadge.className = 'result-status status-correct';
+        feedbackBadge.innerHTML = '✔ 정답입니다! 아주 훌륭합니다.';
+      } else {
+        // 오답 처리: 빨간색 스타일 및 정답 버튼 강조
+        clickedBtn.classList.add('wrong');
+        feedbackBadge.className = 'result-status status-wrong';
+        feedbackBadge.innerHTML = '✖ 아쉽습니다. 오답입니다.';
+
+        // 실제 정답이었던 버튼에 초록색 테두리 표시하여 정답 알려주기
+        allChoiceBtns.forEach(btn => {
+          if (btn.textContent === correctAnswer) {
+            btn.classList.add('correct');
+          }
+        });
+
+        // 오답 노트 기록
+        wrongAnswers.push({
+          word: currentItem.word,
+          hanja: currentItem.hanja,
+          meaning: currentItem.meaning,
+          userAnswer: selectedAnswer,
+          correctAnswer: correctAnswer
+        });
+      }
+
+      // 상단 점수 실시간 갱신
+      currentScoreText.textContent = `현재 점수: ${score}점`;
+
+      // 상세 해설 내용 채우기
+      fullWordText.textContent = currentItem.word;
+      hanjaText.textContent = `[${currentItem.hanja}]`;
+      meaningText.innerHTML = `<strong>뜻:</strong> ${currentItem.meaning}`;
+      exampleText.innerHTML = `<strong>예문:</strong> "${currentItem.example}"`;
+
+      // 해설 카드 및 다음 버튼 보이기
+      explanationCard.style.display = 'block';
+      nextBtn.style.display = 'block';
+
+      // 다음 문제 버튼 텍스트 설정 (마지막 문제일 경우 결과 보기로 전환)
+      if (currentIndex === TOTAL_QUESTIONS_PER_GAME - 1) {
+        nextBtn.textContent = '최종 결과 확인하기 ➔';
+      } else {
+        nextBtn.textContent = '다음 문제로 이동 ➔';
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       7. 다음 문제로 넘어가기 또는 결과 화면 진입
+       -------------------------------------------------------------------------- */
+    function handleNextQuestion() {
+      currentIndex++;
+
+      if (currentIndex < TOTAL_QUESTIONS_PER_GAME) {
+        loadQuestion();
+      } else {
+        showResults();
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       8. 최종 결과 화면 구성
+       -------------------------------------------------------------------------- */
+    function showResults() {
+      quizScreen.classList.remove('active');
+      resultScreen.classList.add('active');
+
+      finalScore.textContent = `${score}점`;
+
+      // 점수에 따른 따뜻한 격려 메시지
+      if (score === 100) {
+        finalMessage.textContent = '🌟 100점 만점! 사자성어에 통달하셨네요!';
+      } else if (score >= 80) {
+        finalMessage.textContent = '👏 참 잘하셨습니다! 실력이 아주 우수합니다.';
+      } else if (score >= 60) {
+        finalMessage.textContent = '👍 좋은 점수입니다! 조금만 더 하면 만점이에요.';
+      } else {
+        finalMessage.textContent = '💪 수고 많으셨습니다. 다시 한번 도전해볼까요?';
+      }
+
+      // 틀린 문제가 있을 경우 오답 목록 생성
+      if (wrongAnswers.length > 0) {
+        wrongReviewContainer.style.display = 'block';
+        wrongItemsList.innerHTML = '';
+
+        wrongAnswers.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'review-item';
+          div.innerHTML = `
+            <div class="review-item-header">
+              <span>${item.word} (${item.hanja})</span>
+              <span style="font-size: 14px; font-weight: normal; color: #dc2626;">정답: ${item.correctAnswer}</span>
+            </div>
+            <div class="review-item-meaning">${item.meaning}</div>
+          `;
+          wrongItemsList.appendChild(div);
+        });
+      } else {
+        wrongReviewContainer.style.display = 'none';
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       9. 이벤트 리스너 바인딩
+       -------------------------------------------------------------------------- */
+    startBtn.addEventListener('click', startGame);
+    nextBtn.addEventListener('click', handleNextQuestion);
+    restartBtn.addEventListener('click', startGame);
+
+  </script>
+</body>
+</html>
